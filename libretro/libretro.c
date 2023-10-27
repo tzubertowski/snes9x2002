@@ -296,7 +296,11 @@ static void retro_set_audio_buff_status_cb(void)
 
 #define VIDEO_REFRESH_RATE_PAL  (SNES_CLOCK_SPEED * 6.0 / (SNES_CYCLES_PER_SCANLINE * SNES_MAX_PAL_VCOUNTER))
 #define VIDEO_REFRESH_RATE_NTSC (SNES_CLOCK_SPEED * 6.0 / (SNES_CYCLES_PER_SCANLINE * SNES_MAX_NTSC_VCOUNTER))
+#if !defined(SF2000)
 #define AUDIO_SAMPLE_RATE       32040
+#else
+#define AUDIO_SAMPLE_RATE       11025
+#endif
 
 static int16_t *audio_out_buffer       = NULL;
 static float audio_samples_per_frame   = 0.0f;

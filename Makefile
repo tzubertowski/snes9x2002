@@ -244,6 +244,21 @@ else ifeq ($(platform), gcw0)
    CFLAGS += -fno-builtin -fno-exceptions
    CFLAGS += -DPATH_MAX=256 -DFAST_LSB_WORD_ACCESS
 
+# SF2000
+else ifeq ($(platform), sf2000)
+    TARGET := $(TARGET_NAME)_libretro_$(platform).a
+    MIPS=/opt/mips32-mti-elf/2019.09-03-2/bin/mips-mti-elf-
+    CC = $(MIPS)gcc
+    CXX = $(MIPS)g++
+    AR = $(MIPS)ar
+    CFLAGS =-EL -march=mips32 -mtune=mips32 -msoft-float -ffast-math -fomit-frame-pointer
+    CFLAGS+=-G0 -mno-abicalls -fno-pic
+#	-ffreestanding
+    CFLAGS+=-DSF2000
+#	-DGFX_MULTI_FORMAT
+    #LOAD_FROM_MEMORY_TEST = 0
+    STATIC_LINKING = 1
+
 # MIYOO
 else ifeq ($(platform), miyoo)
    TARGET := $(TARGET_NAME)_libretro.so
