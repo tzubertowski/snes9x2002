@@ -29,6 +29,9 @@ SOURCES := 	$(CORE_DIR)/apu.c \
 				$(LIBRETRO_DIR)/libretro.c
 
 ifeq ($(STATIC_LINKING), 1)
+ifneq (,$(findstring sf2000,$(platform)))
+SOURCES += $(LIBRETRO_COMM_DIR)/streams/memory_stream.c
+endif
 else
 SOURCES += $(LIBRETRO_COMM_DIR)/streams/memory_stream.c
 endif
