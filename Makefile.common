@@ -1,4 +1,4 @@
-LIBRETRO_COMM_DIR = $(LIBRETRO_DIR)/libretro-common
+LIBRETRO_COMM_DIR = ../../libs/libretro-common
 
 SOURCES_ASM :=
 SOURCES := 	$(CORE_DIR)/apu.c \
