@@ -64,7 +64,11 @@ extern uint8* HDMAMemPointers [8];
 
 void S9xUpdateHTimer()
 {
+#ifdef SF2000_ARITHMETIC_OPTS
+   if (__builtin_expect(PPU.HTimerEnabled, 0))
+#else
    if (PPU.HTimerEnabled)
+#endif
    {
 #ifdef DEBUGGER
       missing.hirq_pos = PPU.IRQHBeamPos;
@@ -74,7 +78,11 @@ void S9xUpdateHTimer()
             PPU.HTimerPosition == Settings.HBlankStart)
          PPU.HTimerPosition--;
 
+#ifdef SF2000_ARITHMETIC_OPTS
+      if (__builtin_expect(!PPU.VTimerEnabled || CPU.V_Counter == PPU.IRQVBeamPos, 1))
+#else
       if (!PPU.VTimerEnabled || CPU.V_Counter == PPU.IRQVBeamPos)
+#endif
       {
          if (PPU.HTimerPosition < CPU.Cycles)
          {
@@ -1129,8 +1137,13 @@ void S9xResetPPU()
    IPPU.Joypads[3] = IPPU.Joypads[4] = 0;
    IPPU.SuperScope = 0;
    IPPU.Mouse[0] = IPPU.Mouse[1] = 0;
+#ifdef SF2000_ARITHMETIC_OPTS
+   IPPU.PrevMouseX[0] = IPPU.PrevMouseX[1] = 256 >> 1;
+   IPPU.PrevMouseY[0] = IPPU.PrevMouseY[1] = 224 >> 1;
+#else
    IPPU.PrevMouseX[0] = IPPU.PrevMouseX[1] = 256 / 2;
    IPPU.PrevMouseY[0] = IPPU.PrevMouseY[1] = 224 / 2;
+#endif
 
    if (Settings.ControllerOption == 0)
       IPPU.Controller = SNES_MAX_CONTROLLER_OPTIONS - 1;

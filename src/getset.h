@@ -243,7 +243,11 @@ static INLINE void S9xSetByte(uint8 Byte, uint32 Address)
    SetAddress = Memory.WriteMap [(Address >> MEMMAP_SHIFT) & MEMMAP_MASK];
 #endif
 
+#ifdef SF2000_ARITHMETIC_OPTS
+   if (__builtin_expect(SetAddress >= (uint8*) MAP_LAST, 1))
+#else
    if (SetAddress >= (uint8*) MAP_LAST)
+#endif
    {
 #ifdef VAR_CYCLES
       CPU.Cycles += Memory.MemorySpeed [block];
@@ -367,7 +371,11 @@ static INLINE void S9xSetWord(uint16 Word, uint32 Address)
    SetAddress = Memory.WriteMap [(Address >> MEMMAP_SHIFT) & MEMMAP_MASK];
 #endif
 
+#ifdef SF2000_ARITHMETIC_OPTS
+   if (__builtin_expect(SetAddress >= (uint8*) MAP_LAST, 1))
+#else
    if (SetAddress >= (uint8*) MAP_LAST)
+#endif
    {
 #ifdef VAR_CYCLES
       CPU.Cycles += Memory.MemorySpeed [block] << 1;

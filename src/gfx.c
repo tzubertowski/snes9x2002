@@ -135,8 +135,13 @@ extern uint8  Mode7Depths [2];
  (GFX.r2130 & 2) && \
  (GFX.r212d & 0x1f))
 
+#ifdef SF2000
+#define ADD_OR_SUB_ON_ANYTHING \
+((GFX.r2131 & 0x3f) && !Settings.DisableTransparency)
+#else
 #define ADD_OR_SUB_ON_ANYTHING \
 (GFX.r2131 & 0x3f)
+#endif
 
 #define BLACK BUILD_PIXEL(0,0,0)
 
@@ -863,7 +868,11 @@ void DrawOBJS(bool8_32 OnMain, uint8 D)
       if (!clipcount)
          clipcount = 1;
 
+#ifdef SF2000_ARITHMETIC_OPTS
+      GFX.Z2 = ((PPU.OBJ[S].Priority + 1) << 2) + D;
+#else
       GFX.Z2 = (PPU.OBJ[S].Priority + 1) * 4 + D;
+#endif
 
       for (clip = 0; clip < clipcount; clip++)
       {
@@ -1585,8 +1594,13 @@ void DrawBackgroundMode5(uint32 BGMODE, uint32 bg, uint8 Z1, uint8 Z2)
          }
          else
          {
+#ifdef SF2000_ARITHMETIC_OPTS
+            Left = GFX.pCurrentClip->Left [clip][bg] << 1;
+            Right = GFX.pCurrentClip->Right [clip][bg] << 1;
+#else
             Left = GFX.pCurrentClip->Left [clip][bg] * 2;
             Right = GFX.pCurrentClip->Right [clip][bg] * 2;
+#endif
 
             if (Right <= Left)
                continue;
@@ -2967,8 +2981,13 @@ void S9xUpdateScreen(void)  // ~30-50ms! (called from FLUSH_REDRAW())
       }
       if (IPPU.LatchedInterlace)
       {
+#ifdef SF2000_ARITHMETIC_OPTS
+         starty = GFX.StartY << 1;
+         endy = (GFX.EndY << 1) + 1;
+#else
          starty = GFX.StartY * 2;
          endy = GFX.EndY * 2 + 1;
+#endif
       }
       if (!IPPU.DoubleWidthPixels)
       {

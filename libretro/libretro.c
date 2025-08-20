@@ -97,6 +97,16 @@ bool8 ROMAPUEnabled                              = 0;
 bool overclock_cycles                            = false;
 int one_c, slow_one_c, two_c;
 
+/* Hotkey state variables */
+static bool hotkey_audio_disabled = false;
+static unsigned hotkey_frameskip_level = 0;  /* 0-4: SEL + A hotkey frameskip */
+static bool sel_r_pressed = false;
+static bool sel_l_pressed = false;
+static bool sel_a_pressed = false;
+static int transparency_indicator_timer = 0;
+static int audio_indicator_timer = 0;
+static int frameskip_indicator_timer = 0;
+
 typedef enum
 {
    FRAMESKIP_NONE = 0,
@@ -333,6 +343,10 @@ static void audio_out_buffer_deinit(void)
 
 static void audio_upload_samples(void)
 {
+   /* If audio is muted via hotkey, don't upload samples */
+   if (hotkey_audio_disabled)
+      return;
+   
    size_t available_frames    = (size_t)audio_samples_per_frame;
    audio_samples_accumulator += audio_samples_per_frame -
          (float)available_frames;
@@ -720,6 +734,27 @@ void retro_run (void)
       IPPU.RenderThisFrame = skip_frame ? FALSE : TRUE;
    }
 
+   /* Hotkey frameskip works independently of regular frameskip */
+   if (hotkey_frameskip_level > 0 && IPPU.RenderThisFrame)
+   {
+      /* Manual frameskip pattern: render 1 frame, skip N frames */
+      static unsigned hotkey_frameskip_counter = 0;
+      bool should_skip = (hotkey_frameskip_counter % (hotkey_frameskip_level + 1)) != 0;
+      
+      if (should_skip)
+      {
+         IPPU.RenderThisFrame = FALSE;
+         /* Don't call video_cb for skipped frames to maintain proper FPS reporting */
+      }
+      
+      /* Always increment counter for hotkey frameskip */
+      hotkey_frameskip_counter++;
+      
+      /* Reset counter to prevent overflow */
+      if (hotkey_frameskip_counter >= (hotkey_frameskip_level + 1))
+         hotkey_frameskip_counter = 0;
+   }
+
    /* If frameskip/timing settings have changed,
     * update frontend audio latency
     * > Can do this before or after the frameskip
@@ -733,13 +768,54 @@ void retro_run (void)
    }
 
    poll_cb();
+
+   /* Universal Hotkeys */
+   bool sel_pressed = input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT);
+   bool r_pressed = input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R);
+   bool l_pressed = input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L);
+   bool a_pressed = input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A);
+   
+   /* SEL + R to toggle transparency effects */
+   if (sel_pressed && r_pressed && !sel_r_pressed) {
+      Settings.DisableTransparency = !Settings.DisableTransparency;
+      transparency_indicator_timer = 180; /* 3 seconds at 60fps */
+      sel_r_pressed = true;
+   } else if (!sel_pressed || !r_pressed) {
+      sel_r_pressed = false;
+   }
+   
+   /* SEL + L to toggle audio mute */
+   if (sel_pressed && l_pressed && !sel_l_pressed) {
+      hotkey_audio_disabled = !hotkey_audio_disabled;
+      audio_indicator_timer = 180; /* 3 seconds at 60fps */
+      sel_l_pressed = true;
+   } else if (!sel_pressed || !l_pressed) {
+      sel_l_pressed = false;
+   }
+   
+   /* SEL + A to cycle frameskip */
+   if (sel_pressed && a_pressed && !sel_a_pressed) {
+      hotkey_frameskip_level = (hotkey_frameskip_level + 1) % 5;  /* Cycle 0-4 */
+      frameskip_indicator_timer = 180; /* 3 seconds at 60fps */
+      sel_a_pressed = true;
+   } else if (!sel_pressed || !a_pressed) {
+      sel_a_pressed = false;
+   }
+   
+   /* Update indicator timers */
+   if (transparency_indicator_timer > 0)
+      transparency_indicator_timer--;
+   if (frameskip_indicator_timer > 0)
+      frameskip_indicator_timer--;
+   if (audio_indicator_timer > 0)
+      audio_indicator_timer--;
+
    report_buttons();
 
    S9xMainLoop();
 //   asm_S9xMainLoop();
 
-   if (!IPPU.RenderThisFrame)
-      video_cb(NULL, IPPU.RenderedScreenWidth, IPPU.RenderedScreenHeight, GFX_PITCH);
+   /* S9xDeinitUpdate handles video output, don't call video_cb here */
 
    audio_upload_samples();
 }
@@ -972,6 +1048,134 @@ bool8 S9xDeinitUpdate(int width, int height)
 		}
 		GFX.Pitch = 2048;
 	}
+
+#ifdef SF2000
+	/* SF2000 Toggle Indicators: Show for 3 seconds after toggle */
+	if (transparency_indicator_timer > 0 || audio_indicator_timer > 0 || frameskip_indicator_timer > 0) {
+		uint16_t* screen = (uint16_t*)GFX.Screen;
+		int pitch = GFX_PITCH >> 1; /* Convert byte pitch to pixel pitch */
+		
+		/* Draw transparency indicator */
+		if (transparency_indicator_timer > 0) {
+			uint16_t bg_color = !Settings.DisableTransparency ? 0x03E0 : 0x0000; /* Green or black */
+			uint16_t text_color = 0xFFFF; /* White text */
+			
+			/* Draw 32x32 indicator box in top-left corner */
+			int start_x = 2;
+			int start_y = 2;
+			
+			/* Draw background */
+			for (int y = 0; y < 32 && start_y + y < height; y++) {
+				for (int x = 0; x < 32 && start_x + x < width; x++) {
+					screen[(start_y + y) * pitch + (start_x + x)] = bg_color;
+				}
+			}
+			
+			/* Draw letter T */
+			for (int y = 8; y < 24; y++) {
+				for (int x = 8; x < 24; x++) {
+					if ((y == 10 && x >= 10 && x <= 22) || (x == 16 && y >= 10 && y <= 22)) {
+						screen[(start_y + y) * pitch + (start_x + x)] = text_color;
+					}
+				}
+			}
+		}
+		
+		/* Draw audio indicator */
+		if (audio_indicator_timer > 0) {
+			uint16_t bg_color = !hotkey_audio_disabled ? 0x03E0 : 0x0000; /* Green or black */
+			uint16_t text_color = 0xFFFF; /* White text */
+			
+			/* Draw 32x32 indicator box, offset if transparency is showing */
+			int start_x = transparency_indicator_timer > 0 ? 36 : 2;
+			int start_y = 2;
+			
+			/* Draw background */
+			for (int y = 0; y < 32 && start_y + y < height; y++) {
+				for (int x = 0; x < 32 && start_x + x < width; x++) {
+					screen[(start_y + y) * pitch + (start_x + x)] = bg_color;
+				}
+			}
+			
+			/* Draw letter A */
+			for (int y = 8; y < 24; y++) {
+				for (int x = 8; x < 24; x++) {
+					if ((y == 10 && x >= 12 && x <= 20) || 
+					    (y == 16 && x >= 10 && x <= 22) ||
+					    ((x == 10 || x == 22) && y >= 10 && y <= 22)) {
+						screen[(start_y + y) * pitch + (start_x + x)] = text_color;
+					}
+				}
+			}
+		}
+		
+		/* Draw frameskip indicator */
+		if (frameskip_indicator_timer > 0) {
+			uint16_t bg_color = hotkey_frameskip_level > 0 ? 0x03E0 : 0x7BEF; /* Green for active, grey for 0 */
+			uint16_t text_color = 0xFFFF; /* White text */
+			
+			/* Draw 32x32 indicator box, offset by other indicators */
+			int start_x = 2;
+			if (transparency_indicator_timer > 0) start_x += 36;
+			if (audio_indicator_timer > 0) start_x += 36;
+			int start_y = 2;
+			
+			/* Draw background */
+			for (int y = 0; y < 32 && start_y + y < height; y++) {
+				for (int x = 0; x < 32 && start_x + x < width; x++) {
+					screen[(start_y + y) * pitch + (start_x + x)] = bg_color;
+				}
+			}
+			
+			/* Draw number 0-4 */
+			switch(hotkey_frameskip_level) {
+				case 0: /* Draw 0 */
+					for (int y = 10; y < 22; y++) {
+						for (int x = 12; x < 20; x++) {
+							if ((y == 10 || y == 21) && x >= 14 && x <= 17) /* Top and bottom */
+								screen[(start_y + y) * pitch + (start_x + x)] = text_color;
+							if ((x == 14 || x == 17) && y >= 10 && y <= 21) /* Left and right */
+								screen[(start_y + y) * pitch + (start_x + x)] = text_color;
+						}
+					}
+					break;
+				case 1: /* Draw 1 */
+					for (int y = 10; y < 22; y++) {
+						screen[(start_y + y) * pitch + (start_x + 16)] = text_color; /* Vertical line */
+					}
+					break;
+				case 2: /* Draw 2 */
+					for (int x = 14; x < 18; x++) {
+						screen[(start_y + 10) * pitch + (start_x + x)] = text_color; /* Top */
+						screen[(start_y + 16) * pitch + (start_x + x)] = text_color; /* Middle */
+						screen[(start_y + 21) * pitch + (start_x + x)] = text_color; /* Bottom */
+					}
+					for (int y = 10; y < 16; y++)
+						screen[(start_y + y) * pitch + (start_x + 17)] = text_color; /* Top right */
+					for (int y = 16; y < 22; y++)
+						screen[(start_y + y) * pitch + (start_x + 14)] = text_color; /* Bottom left */
+					break;
+				case 3: /* Draw 3 */
+					for (int x = 14; x < 18; x++) {
+						screen[(start_y + 10) * pitch + (start_x + x)] = text_color; /* Top */
+						screen[(start_y + 16) * pitch + (start_x + x)] = text_color; /* Middle */
+						screen[(start_y + 21) * pitch + (start_x + x)] = text_color; /* Bottom */
+					}
+					for (int y = 10; y < 22; y++)
+						screen[(start_y + y) * pitch + (start_x + 17)] = text_color; /* Right side */
+					break;
+				case 4: /* Draw 4 */
+					for (int y = 10; y < 16; y++)
+						screen[(start_y + y) * pitch + (start_x + 14)] = text_color; /* Left top */
+					for (int x = 14; x < 18; x++)
+						screen[(start_y + 16) * pitch + (start_x + x)] = text_color; /* Middle */
+					for (int y = 10; y < 22; y++)
+						screen[(start_y + y) * pitch + (start_x + 17)] = text_color; /* Right full */
+					break;
+			}
+		}
+	}
+#endif
 
 	video_cb(GFX.Screen, width, height, GFX_PITCH);
 	

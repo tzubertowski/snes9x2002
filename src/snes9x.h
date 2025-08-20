@@ -327,6 +327,7 @@ typedef struct
    bool8  DisableGraphicWindows;
    bool8  ForceTransparency;
    bool8  ForceNoTransparency;
+   bool8  DisableTransparency;
    bool8  DisableHDMA;
    bool8  DisplayFrameRate;
 

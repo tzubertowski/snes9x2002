@@ -143,8 +143,13 @@ extern uint8  Mode7Depths [2];
  (GFX.r2130 & 2) && \
  (GFX.r212d & 0x1f))
 
+#ifdef SF2000
+#define ADD_OR_SUB_ON_ANYTHING \
+((GFX.r2131 & 0x3f) && !Settings.DisableTransparency)
+#else
 #define ADD_OR_SUB_ON_ANYTHING \
 (GFX.r2131 & 0x3f)
+#endif
 
 #define BLACK BUILD_PIXEL(0,0,0)
 

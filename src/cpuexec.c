@@ -127,7 +127,11 @@ void S9xMainLoop_SA1_APU(void)
       //S9xUpdateAPUTimer ();
 
 
+#ifdef SF2000_ARITHMETIC_OPTS
+      if (__builtin_expect(SA1.Executing, 0))
+#else
       if (SA1.Executing)
+#endif
          S9xSA1MainLoop();
       DO_HBLANK_CHECK();
 
@@ -196,7 +200,11 @@ void S9xMainLoop_SA1_NoAPU(void)
       //S9xUpdateAPUTimer ();
 
 
+#ifdef SF2000_ARITHMETIC_OPTS
+      if (__builtin_expect(SA1.Executing, 0))
+#else
       if (SA1.Executing)
+#endif
          S9xSA1MainLoop();
       DO_HBLANK_CHECK();
 

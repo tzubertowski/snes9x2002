@@ -254,7 +254,7 @@ else ifeq ($(platform), sf2000)
     CFLAGS =-EL -march=mips32 -mtune=mips32 -msoft-float -ffast-math -fomit-frame-pointer
     CFLAGS+=-G0 -mno-abicalls -fno-pic
 #	-ffreestanding
-    CFLAGS+=-DSF2000
+    CFLAGS+=-DSF2000 -DSF2000_ARITHMETIC_OPTS
 #	-DGFX_MULTI_FORMAT
     #LOAD_FROM_MEMORY_TEST = 0
     STATIC_LINKING = 1

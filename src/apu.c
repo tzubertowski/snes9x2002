@@ -653,7 +653,11 @@ void S9xSetAPUDSP(uint8 byte)
    case APU_P_LOW + 0x50:
    case APU_P_LOW + 0x60:
    case APU_P_LOW + 0x70:
+#ifdef SF2000_ARITHMETIC_OPTS
+      S9xSetSoundHertz(reg >> 4, ((byte + (APU.DSP [reg + 1] << 8)) & FREQUENCY_MASK) << 3);
+#else
       S9xSetSoundHertz(reg >> 4, ((byte + (APU.DSP [reg + 1] << 8)) & FREQUENCY_MASK) * 8);
+#endif
       break;
 
    case APU_P_HIGH + 0x00:
@@ -664,8 +668,13 @@ void S9xSetAPUDSP(uint8 byte)
    case APU_P_HIGH + 0x50:
    case APU_P_HIGH + 0x60:
    case APU_P_HIGH + 0x70:
+#ifdef SF2000_ARITHMETIC_OPTS
+      S9xSetSoundHertz(reg >> 4,
+                       (((byte << 8) + APU.DSP [reg - 1]) & FREQUENCY_MASK) << 3);
+#else
       S9xSetSoundHertz(reg >> 4,
                        (((byte << 8) + APU.DSP [reg - 1]) & FREQUENCY_MASK) * 8);
+#endif
       break;
 
    case APU_SRCN + 0x00:
